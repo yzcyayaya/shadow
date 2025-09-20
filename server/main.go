@@ -4,17 +4,19 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
-	"github.com/jingmingyu/shadow/options"
-	shadow "github.com/jingmingyu/shadow/proto/sd"
-	"github.com/jingmingyu/shadow/tools"
-	"google.golang.org/grpc"
 	"log"
 	"net"
 	"os"
 	"os/exec"
+	"runtime"
 	"strconv"
 	"sync"
 	"time"
+
+	"github.com/jingmingyu/shadow/options"
+	shadow "github.com/jingmingyu/shadow/proto/sd"
+	"github.com/jingmingyu/shadow/tools"
+	"google.golang.org/grpc"
 )
 
 type ShadowStreamService struct {
@@ -30,15 +32,25 @@ func ExecMyCommand(outchan chan string, execuser string, cmdstr string) {
 	var (
 		cmd *exec.Cmd = nil
 	)
-	if os.Getuid() == 0 {
-		if execuser == "root" {
-			cmd = exec.Command("bash", "-c", cmdstr)
+    osType := runtime.GOOS
+    if osType == "windows" {
+        log.Println("os is Windows")
+		cmd = exec.Command("cmd", "/C", cmdstr)
+    } else if osType == "linux" {
+        log.Println("os is Linux")
+		if os.Getuid() == 0 {
+			if execuser == "root" {
+				cmd = exec.Command("bash", "-c", cmdstr)
+			} else {
+				cmd = exec.Command("sudo", "su", "-", execuser, "-c", cmdstr)
+			}
 		} else {
-			cmd = exec.Command("sudo", "su", "-", execuser, "-c", cmdstr)
+			cmd = exec.Command("bash", "-c", cmdstr)
 		}
-	} else {
-		cmd = exec.Command("bash", "-c", cmdstr)
-	}
+    } else {
+        fmt.Println("other")
+    }
+
 
 	os.Setenv("NAME", execuser)
 
